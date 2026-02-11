@@ -206,18 +206,44 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '</div>';
             }
             
-            if (data.generated_files && data.generated_files.length > 0) {
+            if (data.summary) {
                 html += '<div class="stat-item">';
-                html += '<span class="stat-label">Reports Generated:</span>';
-                html += '<span class="stat-value">' + data.generated_files.length + '</span>';
+                html += '<span class="stat-label">Summary:</span>';
+                html += '<span class="stat-value">' + data.summary + '</span>';
                 html += '</div>';
             }
             
             html += '</div>';
         }
         
-        // Show download links
-        if (data.generated_files && data.generated_files.length > 0) {
+        // Show download options for serverless environment
+        if (data.download_data) {
+            html += '<h4>Download Reports:</h4>';
+            html += '<div class="download-section">';
+            
+            // CSV Download Button
+            if (data.download_data.attendance_report_csv) {
+                html += '<button class="download-btn csv-btn" onclick="downloadCSV(\'' + 
+                        btoa(data.download_data.attendance_report_csv) + '\')">📄 Download CSV Report</button>';
+            }
+            
+            // JSON Download Button  
+            if (data.download_data.attendance_report_json) {
+                html += '<button class="download-btn json-btn" onclick="downloadJSON(\'' + 
+                        btoa(JSON.stringify(data.download_data.attendance_report_json)) + '\')">📋 Download JSON Report</button>';
+            }
+            
+            // View Data Button
+            if (data.attendance_report && data.attendance_report.length > 0) {
+                html += '<button class="download-btn view-btn" onclick="viewAttendanceData(\'' + 
+                        btoa(JSON.stringify(data.attendance_report)) + '\')">👁️ View Attendance Data</button>';
+            }
+            
+            html += '</div>';
+        }
+        
+        // Fallback for old-style file links (if any)
+        else if (data.generated_files && data.generated_files.length > 0) {
             html += '<h4>Download Reports:</h4>';
             html += '<ul class="file-list">';
             
@@ -348,3 +374,124 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize form validation when DOM is loaded
     setupFormValidation();
 });
+
+// Download functions for serverless environment
+function downloadCSV(base64Data) {
+    try {
+        const csvContent = atob(base64Data);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'attendance_report.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error('Error downloading CSV:', error);
+        alert('Error downloading CSV file. Please try again.');
+    }
+}
+
+function downloadJSON(base64Data) {
+    try {
+        const jsonContent = atob(base64Data);
+        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+        const link = document.createElement('a');
+        
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'attendance_report.json');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error('Error downloading JSON:', error);
+        alert('Error downloading JSON file. Please try again.');
+    }
+}
+
+function viewAttendanceData(base64Data) {
+    try {
+        const attendanceData = JSON.parse(atob(base64Data));
+        
+        // Create a new window to display the data
+        const newWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+        
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Attendance Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                    .present { color: green; font-weight: bold; }
+                    .absent { color: red; font-weight: bold; }
+                    .header { background-color: #4CAF50; color: white; padding: 10px; margin-bottom: 20px; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>FCTC Attendance Report</h1>
+                    <p>Total Students: ${attendanceData.length}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+        `;
+        
+        // Add table headers
+        if (attendanceData.length > 0) {
+            Object.keys(attendanceData[0]).forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+        }
+        
+        html += `
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        // Add table rows
+        attendanceData.forEach(row => {
+            html += '<tr>';
+            Object.values(row).forEach((value, index) => {
+                const key = Object.keys(row)[index];
+                let cellClass = '';
+                if (key === 'Attendance_Status') {
+                    cellClass = value === 'Present' ? 'present' : 'absent';
+                }
+                html += `<td class="${cellClass}">${value || 'N/A'}</td>`;
+            });
+            html += '</tr>';
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+        
+        newWindow.document.write(html);
+        newWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error viewing attendance data:', error);
+        alert('Error displaying attendance data. Please try again.');
+    }
+}

@@ -201,11 +201,17 @@ def process_files():
         except:
             pass  # Ignore cleanup errors
         
-        # Prepare response
+        # Prepare response with downloadable data
         response_data = {
             'matched_students': result.get('matched_students', 0),
             'generated_files': result.get('reports', {}).get('files_created', []),
-            'year': year
+            'year': year,
+            'attendance_report': result.get('attendance_report', []),
+            'summary': result.get('reports', {}).get('summary', ''),
+            'download_data': {
+                'attendance_report_csv': _generate_csv_content(result.get('attendance_report', [])),
+                'attendance_report_json': result.get('attendance_report', [])
+            }
         }
         
         return jsonify(format_response(
@@ -229,6 +235,21 @@ def process_files():
             False, 
             f"Error processing files: {str(e)}"
         )), 500
+
+def _generate_csv_content(attendance_data):
+    """Generate CSV content from attendance data"""
+    if not attendance_data:
+        return ""
+    
+    import io
+    import csv
+    
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=attendance_data[0].keys())
+    writer.writeheader()
+    writer.writerows(attendance_data)
+    
+    return output.getvalue()
 
 @app.route('/debug-prn', methods=['POST'])
 def debug_prn_matching():
@@ -345,20 +366,58 @@ def health_check():
 @app.route('/download/<path:filename>')
 def download_file(filename):
     """Download generated report files - Vercel compatible"""
-    from flask import send_file, jsonify
+    from flask import Response
     try:
-        # For Vercel, we'll return the file content as base64 or provide a different approach
-        # Since Vercel is serverless, we can't store files permanently
+        # Since this is serverless, we need to get the data from the session or request
+        # For now, return instructions on how to download
         return jsonify(format_response(
-            False,
-            "File download not available in serverless environment. Files are processed and returned in response."
-        )), 404
+            True,
+            "Download data is included in the processing response. Use the 'download_data' field to get CSV or JSON content.",
+            {
+                "instructions": [
+                    "1. The processed data is returned directly in the API response",
+                    "2. Look for 'download_data' in the response",
+                    "3. Use 'attendance_report_csv' for CSV format",
+                    "4. Use 'attendance_report_json' for JSON format",
+                    "5. Copy the content and save as a file on your computer"
+                ]
+            }
+        )), 200
             
     except Exception as e:
         print(f"✗ Error in download route: {e}")
         return jsonify(format_response(
             False,
             f"Error downloading file: {str(e)}"
+        )), 500
+
+@app.route('/download-csv', methods=['POST'])
+def download_csv():
+    """Generate and return CSV file content"""
+    from flask import Response
+    try:
+        data = request.get_json()
+        if not data or 'attendance_report' not in data:
+            return jsonify(format_response(
+                False,
+                "No attendance report data provided"
+            )), 400
+        
+        csv_content = _generate_csv_content(data['attendance_report'])
+        
+        return Response(
+            csv_content,
+            mimetype='text/csv',
+            headers={
+                'Content-Disposition': 'attachment; filename=attendance_report.csv',
+                'Content-Type': 'text/csv'
+            }
+        )
+        
+    except Exception as e:
+        return jsonify(format_response(
+            False,
+            f"Error generating CSV: {str(e)}"
         )), 500
 
 @app.errorhandler(413)
