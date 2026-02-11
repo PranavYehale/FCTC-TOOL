@@ -48,9 +48,9 @@ class ExamProcessor:
         """
         print(f"🔍 Attempting to read Excel file: {file_path}")
         
-        # Method 1: Try with pandas (most robust for problematic files)
+        # Method 1: Try with pandas if available (most robust for problematic files)
         try:
-            print("📖 Method 1: Trying pandas...")
+            print("📖 Method 1: Trying pandas (if available)...")
             import pandas as pd
             
             # Try reading with pandas first (handles most Excel issues)
@@ -78,20 +78,59 @@ class ExamProcessor:
             print(f"✅ Method 1 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
             return data_rows, headers
             
+        except ImportError:
+            print("📝 pandas not available - using openpyxl methods")
         except Exception as e1:
             print(f"❌ Method 1 failed: {str(e1)}")
+        
+        # Method 2: Try with openpyxl (data_only=True) - Enhanced for XML issues
+        try:
+            print("📖 Method 2: Trying openpyxl (data_only=True)...")
             
-            # Method 2: Try with openpyxl (data_only=True)
+            workbook = openpyxl.load_workbook(file_path, data_only=True)
+            sheet = workbook.active
+            
+            # Get all rows as lists
+            all_rows = []
+            for row in sheet.iter_rows(values_only=True):
+                if any(cell is not None for cell in row):  # Skip completely empty rows
+                    all_rows.append(list(row))
+            
+            workbook.close()
+            
+            if not all_rows:
+                raise Exception("Excel file is empty")
+            
+            # Find header row
+            header_row_idx = 0
+            max_string_count = 0
+            
+            for i, row in enumerate(all_rows[:10]):
+                string_count = sum(1 for cell in row if isinstance(cell, str) and cell.strip())
+                if string_count > max_string_count:
+                    max_string_count = string_count
+                    header_row_idx = i
+            
+            headers = [str(cell).strip() if cell is not None else "" for cell in all_rows[header_row_idx]]
+            data_rows = all_rows[header_row_idx + 1:]
+            
+            print(f"✅ Method 2 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
+            return data_rows, headers
+            
+        except Exception as e2:
+            print(f"❌ Method 2 failed: {str(e2)}")
+            
+            # Method 3: Try with openpyxl (data_only=False)
             try:
-                print("📖 Method 2: Trying openpyxl (data_only=True)...")
+                print("📖 Method 3: Trying openpyxl (data_only=False)...")
                 
-                workbook = openpyxl.load_workbook(file_path, data_only=True)
+                workbook = openpyxl.load_workbook(file_path, data_only=False)
                 sheet = workbook.active
                 
                 # Get all rows as lists
                 all_rows = []
                 for row in sheet.iter_rows(values_only=True):
-                    if any(cell is not None for cell in row):  # Skip completely empty rows
+                    if any(cell is not None for cell in row):
                         all_rows.append(list(row))
                 
                 workbook.close()
@@ -112,20 +151,19 @@ class ExamProcessor:
                 headers = [str(cell).strip() if cell is not None else "" for cell in all_rows[header_row_idx]]
                 data_rows = all_rows[header_row_idx + 1:]
                 
-                print(f"✅ Method 2 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
+                print(f"✅ Method 3 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
                 return data_rows, headers
                 
-            except Exception as e2:
-                print(f"❌ Method 2 failed: {str(e2)}")
+            except Exception as e3:
+                print(f"❌ Method 3 failed: {str(e3)}")
                 
-                # Method 3: Try with openpyxl (data_only=False)
+                # Method 4: Try reading with read_only mode and ignore XML errors
                 try:
-                    print("📖 Method 3: Trying openpyxl (data_only=False)...")
+                    print("📖 Method 4: Trying openpyxl read-only mode...")
                     
-                    workbook = openpyxl.load_workbook(file_path, data_only=False)
+                    workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
                     sheet = workbook.active
                     
-                    # Get all rows as lists
                     all_rows = []
                     for row in sheet.iter_rows(values_only=True):
                         if any(cell is not None for cell in row):
@@ -149,102 +187,111 @@ class ExamProcessor:
                     headers = [str(cell).strip() if cell is not None else "" for cell in all_rows[header_row_idx]]
                     data_rows = all_rows[header_row_idx + 1:]
                     
-                    print(f"✅ Method 3 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
+                    print(f"✅ Method 4 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
                     return data_rows, headers
                     
-                except Exception as e3:
-                    print(f"❌ Method 3 failed: {str(e3)}")
+                except Exception as e4:
+                    print(f"❌ Method 4 failed: {str(e4)}")
                     
-                    # Method 4: Try with xlrd for older Excel files
+                    # Method 5: Try with minimal openpyxl settings and error tolerance
                     try:
-                        print("📖 Method 4: Trying xlrd...")
-                        import pandas as pd
+                        print("📖 Method 5: Trying openpyxl with error tolerance...")
                         
-                        # Try reading as .xls file
-                        df = pd.read_excel(file_path, engine='xlrd', header=None)
+                        # Try to load with minimal settings
+                        import tempfile
+                        import shutil
                         
-                        if df.empty:
-                            raise Exception("Excel file is empty")
+                        # Create a temporary copy
+                        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp_file:
+                            shutil.copy2(file_path, tmp_file.name)
+                            tmp_path = tmp_file.name
                         
-                        # Convert DataFrame to list of lists
-                        all_rows = df.values.tolist()
-                        
-                        # Find header row
-                        header_row_idx = 0
-                        max_string_count = 0
-                        
-                        for i, row in enumerate(all_rows[:10]):
-                            string_count = sum(1 for cell in row if isinstance(cell, str) and str(cell).strip())
-                            if string_count > max_string_count:
-                                max_string_count = string_count
-                                header_row_idx = i
-                        
-                        headers = [str(cell).strip() if cell is not None and str(cell) != 'nan' else "" for cell in all_rows[header_row_idx]]
-                        data_rows = all_rows[header_row_idx + 1:]
-                        
-                        print(f"✅ Method 4 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
-                        return data_rows, headers
-                        
-                    except Exception as e4:
-                        print(f"❌ Method 4 failed: {str(e4)}")
-                        
-                        # Method 5: Try reading with read_only mode
                         try:
-                            print("📖 Method 5: Trying openpyxl read-only mode...")
+                            # Try different openpyxl configurations
+                            for keep_vba in [False, True]:
+                                for keep_links in [False, True]:
+                                    try:
+                                        wb = openpyxl.load_workbook(
+                                            tmp_path, 
+                                            read_only=False, 
+                                            keep_vba=keep_vba,
+                                            data_only=True,
+                                            keep_links=keep_links
+                                        )
+                                        ws = wb.active
+                                        
+                                        all_rows = []
+                                        for row in ws.iter_rows(values_only=True, max_row=1000):  # Limit rows to avoid memory issues
+                                            if any(cell is not None for cell in row):
+                                                all_rows.append(list(row))
+                                        
+                                        wb.close()
+                                        
+                                        if all_rows:
+                                            # Find header row
+                                            header_row_idx = 0
+                                            max_string_count = 0
+                                            
+                                            for i, row in enumerate(all_rows[:10]):
+                                                string_count = sum(1 for cell in row if isinstance(cell, str) and cell.strip())
+                                                if string_count > max_string_count:
+                                                    max_string_count = string_count
+                                                    header_row_idx = i
+                                            
+                                            headers = [str(cell).strip() if cell is not None else "" for cell in all_rows[header_row_idx]]
+                                            data_rows = all_rows[header_row_idx + 1:]
+                                            
+                                            print(f"✅ Method 5 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
+                                            return data_rows, headers
+                                    except:
+                                        continue
                             
-                            workbook = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
-                            sheet = workbook.active
+                            raise Exception("All openpyxl configurations failed")
                             
-                            all_rows = []
-                            for row in sheet.iter_rows(values_only=True):
-                                if any(cell is not None for cell in row):
-                                    all_rows.append(list(row))
-                            
-                            workbook.close()
-                            
-                            if not all_rows:
-                                raise Exception("Excel file is empty")
-                            
-                            # Find header row
-                            header_row_idx = 0
-                            max_string_count = 0
-                            
-                            for i, row in enumerate(all_rows[:10]):
-                                string_count = sum(1 for cell in row if isinstance(cell, str) and cell.strip())
-                                if string_count > max_string_count:
-                                    max_string_count = string_count
-                                    header_row_idx = i
-                            
-                            headers = [str(cell).strip() if cell is not None else "" for cell in all_rows[header_row_idx]]
-                            data_rows = all_rows[header_row_idx + 1:]
-                            
-                            print(f"✅ Method 5 successful: Found {len(headers)} columns, {len(data_rows)} data rows")
-                            return data_rows, headers
-                            
-                        except Exception as e5:
-                            print(f"❌ Method 5 failed: {str(e5)}")
-                            
-                            # All methods failed - provide comprehensive error message
-                            error_details = f"""
-❌ All Excel reading methods failed:
-• Method 1 (pandas): {str(e1)}
+                        finally:
+                            # Clean up temp file
+                            try:
+                                os.unlink(tmp_path)
+                            except:
+                                pass
+                                
+                    except Exception as e5:
+                        print(f"❌ Method 5 failed: {str(e5)}")
+                        
+                        # All methods failed - provide comprehensive error message
+                        error_details = f"""
+❌ All Excel reading methods failed. This appears to be a severely corrupted Excel file.
+
+🔧 SOLUTIONS TO TRY:
+
+**Option 1 - Fix the Excel file:**
+1. Open the file in Microsoft Excel
+2. Select all data (Ctrl+A)
+3. Copy it (Ctrl+C)  
+4. Create a new Excel workbook
+5. Paste the data (Ctrl+V)
+6. Save as a new .xlsx file
+7. Upload the new file
+
+**Option 2 - Convert to CSV:**
+1. Open the file in Excel
+2. Save As → CSV format
+3. Upload the CSV file instead
+
+**Option 3 - Check file integrity:**
+1. Ensure the file is not corrupted
+2. Try opening in Google Sheets and re-downloading
+3. Verify the file is a valid Excel format
+
+**Technical Details:**
 • Method 2 (openpyxl data_only=True): {str(e2)}
 • Method 3 (openpyxl data_only=False): {str(e3)}
-• Method 4 (xlrd): {str(e4)}
-• Method 5 (read_only): {str(e5)}
+• Method 4 (read_only): {str(e4)}
+• Method 5 (error tolerance): {str(e5)}
 
-🔧 The Excel file appears to have severe formatting issues. Please try:
-1. Opening the file in Microsoft Excel
-2. Selecting all data (Ctrl+A)
-3. Copying it (Ctrl+C)
-4. Creating a new Excel workbook
-5. Pasting the data (Ctrl+V)
-6. Saving as a new .xlsx file
-7. Uploading the new file
-
-If the issue persists, the original file may be corrupted.
+If none of these solutions work, the original file may be irreparably corrupted.
 """
-                            raise Exception(error_details)
+                        raise Exception(error_details)
     
     def _clean_prn(self, prn_value) -> str:
         """Clean and standardize PRN format"""
