@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FCTC Exam Automation System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FCTC Exam Automation System</h1>
+            <p>Upload Excel files to generate automated exam reports</p>
+        </header>
+
+        <main>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="fctc_file">FCTC Excel File:</label>
+                    <input type="file" id="fctc_file" name="fctc_file" accept=".xlsx,.xls" required>
+                    <small>Select the FCTC exam results Excel file</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="roll_call_file">Roll Call Excel File:</label>
+                    <input type="file" id="roll_call_file" name="roll_call_file" accept=".xlsx,.xls" required>
+                    <small>Select the roll call Excel file</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="year">Academic Year:</label>
+                    <select id="year" name="year" required>
+                        <option value="">Select Year</option>
+                        <option value="I">First Year (I)</option>
+                        <option value="II">Second Year (II)</option>
+                        <option value="III">Third Year (III)</option>
+                    </select>
+                    <small>Select the academic year for the students</small>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" id="generateBtn" class="btn-primary">
+                        <span id="btnText">Generate Report</span>
+                        <span id="btnLoader" class="loader" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+
+            <!-- Messages Section -->
+            <div id="messageSection" class="message-section" style="display: none;">
+                <div id="messageContent" class="message"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div id="resultsSection" class="results-section" style="display: none;">
+                <h3>Generated Reports</h3>
+                <div id="resultsContent"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 FCTC Exam Automation System</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
