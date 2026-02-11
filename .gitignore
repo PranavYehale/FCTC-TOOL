@@ -295,3 +295,5 @@ k8s/
 !outputs/department/.gitkeep
 !outputs/division/.gitkeep
 !logs/.gitkeep
+.vercel
+.env*.local
