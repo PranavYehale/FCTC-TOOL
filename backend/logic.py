@@ -678,14 +678,12 @@ class ExamProcessor:
         return master_df
     
     def _generate_reports(self, master_df):
-        """Generate Excel reports based on master DataFrame"""
+        """Generate Excel reports based on master DataFrame - Vercel compatible"""
         
-        # Ensure output directories exist
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        master_output_dir = os.path.join(project_root, 'outputs', 'master')
-        division_output_dir = os.path.join(project_root, 'outputs', 'division')
-        os.makedirs(master_output_dir, exist_ok=True)
-        os.makedirs(division_output_dir, exist_ok=True)
+        # Use temporary directories for Vercel
+        import tempfile
+        master_output_dir = tempfile.mkdtemp()
+        division_output_dir = tempfile.mkdtemp()
         
         generated_files = []
         

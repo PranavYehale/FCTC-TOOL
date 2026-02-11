@@ -1,3 +1,5 @@
+import tempfile
+import shutil
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import os
@@ -57,16 +59,18 @@ except AttributeError as e:
         if exception:
             print(f"Exception: {exception}")
 
-app = Flask(__name__, template_folder='../frontend/templates', static_folder='../frontend/static')
+app = Flask(__name__, 
+           template_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend', 'templates'),
+           static_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static'))
 CORS(app)  # Enable CORS for all routes
 
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
-UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
-# Ensure upload directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Use temporary directory for Vercel
+UPLOAD_FOLDER = tempfile.mkdtemp()
+OUTPUT_FOLDER = tempfile.mkdtemp()
 
 @app.route('/')
 def home():
@@ -341,28 +345,15 @@ def health_check():
     )), 200
 @app.route('/download/<path:filename>')
 def download_file(filename):
-    """Download generated report files - simplified for PRN-first pipeline"""
-    from flask import send_file
+    """Download generated report files - Vercel compatible"""
+    from flask import send_file, jsonify
     try:
-        # Get the absolute path to the project root
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        file_path = os.path.join(project_root, 'outputs', filename)
-        
-        print(f"Attempting to download file: {file_path}")
-        
-        # Check if file exists BEFORE attempting to send
-        if os.path.exists(file_path):
-            file_size = os.path.getsize(file_path)
-            print(f"✓ File exists and will be sent: {file_path} ({file_size} bytes)")
-            return send_file(file_path, as_attachment=True)
-        else:
-            print(f"✗ File does NOT exist: {file_path}")
-            
-            # Return clear error message
-            return jsonify(format_response(
-                False,
-                "File not found. PRN-first pipeline reports not yet implemented."
-            )), 404
+        # For Vercel, we'll return the file content as base64 or provide a different approach
+        # Since Vercel is serverless, we can't store files permanently
+        return jsonify(format_response(
+            False,
+            "File download not available in serverless environment. Files are processed and returned in response."
+        )), 404
             
     except Exception as e:
         print(f"✗ Error in download route: {e}")
