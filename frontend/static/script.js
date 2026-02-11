@@ -188,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = '';
         
         // Show statistics
-        if (data.matched_students !== undefined || data.year || data.generated_files) {
+        if (data.matched_students !== undefined || data.year || data.division_count) {
             html += '<div class="stats">';
             html += '<h4>Processing Summary</h4>';
             
@@ -196,6 +196,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 html += '<div class="stat-item">';
                 html += '<span class="stat-label">Matched Students:</span>';
                 html += '<span class="stat-value">' + data.matched_students + '</span>';
+                html += '</div>';
+            }
+            
+            if (data.division_count !== undefined) {
+                html += '<div class="stat-item">';
+                html += '<span class="stat-label">Total Divisions:</span>';
+                html += '<span class="stat-value">' + data.division_count + '</span>';
+                html += '</div>';
+            }
+            
+            if (data.divisions && data.divisions.length > 0) {
+                html += '<div class="stat-item">';
+                html += '<span class="stat-label">Divisions Found:</span>';
+                html += '<span class="stat-value">' + data.divisions.join(', ') + '</span>';
                 html += '</div>';
             }
             
@@ -216,21 +230,44 @@ document.addEventListener('DOMContentLoaded', function() {
             html += '</div>';
         }
         
-        // Show download options for serverless environment
-        if (data.download_data) {
-            html += '<h4>Download Reports:</h4>';
-            html += '<div class="download-section">';
+        // Show division-wise download options
+        if (data.download_data && Object.keys(data.download_data).length > 0) {
+            html += '<h4>Download Division-wise Reports:</h4>';
             
-            // CSV Download Button
-            if (data.download_data.attendance_report_csv) {
-                html += '<button class="download-btn csv-btn" onclick="downloadCSV(\'' + 
-                        btoa(data.download_data.attendance_report_csv) + '\')">📄 Download CSV Report</button>';
+            // Show division statistics
+            if (data.division_reports) {
+                html += '<div class="division-stats">';
+                for (const [division, report] of Object.entries(data.division_reports)) {
+                    html += '<div class="division-stat-card">';
+                    html += '<h5>Division ' + division + '</h5>';
+                    html += '<p>Total: ' + report.total_students + ' | ';
+                    html += '<span class="present-text">Present: ' + report.present_count + '</span> | ';
+                    html += '<span class="absent-text">Absent: ' + report.absent_count + '</span></p>';
+                    html += '</div>';
+                }
+                html += '</div>';
             }
             
-            // View Data Button
-            if (data.attendance_report && data.attendance_report.length > 0) {
-                html += '<button class="download-btn view-btn" onclick="viewAttendanceData(\'' + 
-                        btoa(JSON.stringify(data.attendance_report)) + '\')">👁️ View Attendance Data</button>';
+            html += '<div class="download-section">';
+            
+            // Create download button for each division
+            for (const [divisionKey, divisionData] of Object.entries(data.download_data)) {
+                const divisionName = divisionKey.replace('division_', '').replace(/_/g, ' ');
+                html += '<button class="download-btn csv-btn" onclick="downloadDivisionCSV(\'' + 
+                        btoa(divisionData.csv_content) + '\', \'' + divisionData.filename + '\')">📄 Download ' + 
+                        divisionName + ' Report (' + divisionData.total_students + ' students)</button>';
+            }
+            
+            // Add "Download All" button if multiple divisions
+            if (Object.keys(data.download_data).length > 1) {
+                html += '<button class="download-btn download-all-btn" onclick="downloadAllDivisions(\'' + 
+                        btoa(JSON.stringify(data.download_data)) + '\')">📦 Download All Divisions</button>';
+            }
+            
+            // View all data button
+            if (data.division_reports) {
+                html += '<button class="download-btn view-btn" onclick="viewAllDivisionsData(\'' + 
+                        btoa(JSON.stringify(data.division_reports)) + '\')">👁️ View All Attendance Data</button>';
             }
             
             html += '</div>';
@@ -389,6 +426,158 @@ function downloadCSV(base64Data) {
     } catch (error) {
         console.error('Error downloading CSV:', error);
         alert('Error downloading CSV file. Please try again.');
+    }
+}
+
+function downloadDivisionCSV(base64Data, filename) {
+    try {
+        const csvContent = atob(base64Data);
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        
+        if (link.download !== undefined) {
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+    } catch (error) {
+        console.error('Error downloading division CSV:', error);
+        alert('Error downloading CSV file. Please try again.');
+    }
+}
+
+function downloadAllDivisions(base64Data) {
+    try {
+        const divisionsData = JSON.parse(atob(base64Data));
+        
+        // Download each division file with a small delay
+        let delay = 0;
+        for (const [divisionKey, divisionData] of Object.entries(divisionsData)) {
+            setTimeout(() => {
+                downloadDivisionCSV(btoa(divisionData.csv_content), divisionData.filename);
+            }, delay);
+            delay += 500; // 500ms delay between downloads
+        }
+        
+        alert(`Downloading ${Object.keys(divisionsData).length} division reports. Please check your downloads folder.`);
+    } catch (error) {
+        console.error('Error downloading all divisions:', error);
+        alert('Error downloading files. Please try downloading divisions individually.');
+    }
+}
+
+function viewAllDivisionsData(base64Data) {
+    try {
+        const divisionReports = JSON.parse(atob(base64Data));
+        
+        // Create a new window to display the data
+        const newWindow = window.open('', '_blank', 'width=1000,height=700,scrollbars=yes');
+        
+        let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Division-wise Attendance Report</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+                    .header { background-color: #4CAF50; color: white; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+                    .division-section { background: white; margin-bottom: 20px; padding: 15px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+                    .division-header { background: #2196F3; color: white; padding: 10px; margin: -15px -15px 15px -15px; border-radius: 5px 5px 0 0; }
+                    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 14px; }
+                    th { background-color: #f2f2f2; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                    .present { color: green; font-weight: bold; }
+                    .absent { color: red; font-weight: bold; }
+                    .stats { display: flex; gap: 20px; margin-bottom: 10px; }
+                    .stat-box { background: #e3f2fd; padding: 10px; border-radius: 5px; flex: 1; text-align: center; }
+                    .stat-value { font-size: 24px; font-weight: bold; color: #1976d2; }
+                    .stat-label { font-size: 12px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>FCTC Division-wise Attendance Report</h1>
+                    <p>Total Divisions: ${Object.keys(divisionReports).length}</p>
+                </div>
+        `;
+        
+        // Add each division's data
+        for (const [division, report] of Object.entries(divisionReports)) {
+            html += `
+                <div class="division-section">
+                    <div class="division-header">
+                        <h2>Division ${division}</h2>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-box">
+                            <div class="stat-value">${report.total_students}</div>
+                            <div class="stat-label">Total Students</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" style="color: green;">${report.present_count}</div>
+                            <div class="stat-label">Present</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-value" style="color: red;">${report.absent_count}</div>
+                            <div class="stat-label">Absent</div>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+            `;
+            
+            // Add table headers
+            if (report.students.length > 0) {
+                Object.keys(report.students[0]).forEach(key => {
+                    html += `<th>${key}</th>`;
+                });
+            }
+            
+            html += `
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Add table rows
+            report.students.forEach(row => {
+                html += '<tr>';
+                Object.values(row).forEach((value, index) => {
+                    const key = Object.keys(row)[index];
+                    let cellClass = '';
+                    if (key === 'Attendance_Status') {
+                        cellClass = value === 'Present' ? 'present' : 'absent';
+                    }
+                    html += `<td class="${cellClass}">${value || 'N/A'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        html += `
+            </body>
+            </html>
+        `;
+        
+        newWindow.document.write(html);
+        newWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error viewing divisions data:', error);
+        alert('Error displaying attendance data. Please try again.');
     }
 }
 

@@ -507,7 +507,7 @@ If none of these solutions work, the original file may be irreparably corrupted.
     
     def process_and_generate_reports(self, fctc_file_path, roll_call_file_path, year):
         """
-        PRN-FIRST PIPELINE: Process files and generate attendance reports
+        PRN-FIRST PIPELINE: Process files and generate division-wise attendance reports
         """
         try:
             # Read and extract data
@@ -535,11 +535,17 @@ If none of these solutions work, the original file may be irreparably corrupted.
             
             # Create lookup dictionaries
             fctc_lookup = {record['PRN_CLEAN']: record for record in fctc_data}
-            roll_call_lookup = {record['PRN_CLEAN']: record for record in roll_call_data}
             
-            # Generate attendance report
-            attendance_report = []
+            # Group students by division
+            divisions = {}
             for roll_record in roll_call_data:
+                division = str(roll_record.get('Division', 'Unknown')).strip().upper()
+                if not division or division == 'NONE' or division == 'NAN':
+                    division = 'Unknown'
+                
+                if division not in divisions:
+                    divisions[division] = []
+                
                 prn = roll_record['PRN_CLEAN']
                 
                 # Check if student appeared for exam
@@ -551,7 +557,7 @@ If none of these solutions work, the original file may be irreparably corrupted.
                     status = "Absent"
                     score = "N/A"
                 
-                attendance_report.append({
+                divisions[division].append({
                     'PRN': roll_record['PRN_RAW'],
                     'Roll_No': roll_record['Roll_No'],
                     'Name': roll_record['Name'],
@@ -560,16 +566,31 @@ If none of these solutions work, the original file may be irreparably corrupted.
                     'Score': score
                 })
             
-            # Return results (in serverless environment, we return data instead of saving files)
+            print(f"📊 Found {len(divisions)} divisions: {list(divisions.keys())}")
+            
+            # Generate division-wise reports
+            division_reports = {}
+            for division, students in divisions.items():
+                division_reports[division] = {
+                    'students': students,
+                    'total_students': len(students),
+                    'present_count': sum(1 for s in students if s['Attendance_Status'] == 'Present'),
+                    'absent_count': sum(1 for s in students if s['Attendance_Status'] == 'Absent')
+                }
+                print(f"  📋 Division {division}: {len(students)} students ({division_reports[division]['present_count']} present, {division_reports[division]['absent_count']} absent)")
+            
+            # Return results with division-wise data
             result = {
                 'success': True,
                 'matched_students': len(matched_prns),
                 'total_roll_call': len(roll_call_data),
                 'total_fctc': len(fctc_data),
-                'attendance_report': attendance_report,
+                'divisions': list(divisions.keys()),
+                'division_count': len(divisions),
+                'division_reports': division_reports,
                 'reports': {
-                    'files_created': ['attendance_report.json'],  # Virtual file names
-                    'summary': f"Processed {len(matched_prns)} matched students out of {len(roll_call_data)} total students"
+                    'files_created': [f'attendance_report_division_{div}.csv' for div in divisions.keys()],
+                    'summary': f"Processed {len(matched_prns)} matched students across {len(divisions)} divisions"
                 }
             }
             

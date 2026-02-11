@@ -201,16 +201,31 @@ def process_files():
         except:
             pass  # Ignore cleanup errors
         
-        # Prepare response with downloadable data
+        # Prepare response with downloadable division-wise data
+        division_reports = result.get('division_reports', {})
+        download_data = {}
+        
+        # Generate CSV for each division
+        for division, report_data in division_reports.items():
+            csv_content = _generate_csv_content(report_data['students'])
+            safe_division_name = division.replace('/', '_').replace('\\', '_').replace(' ', '_')
+            download_data[f'division_{safe_division_name}'] = {
+                'csv_content': csv_content,
+                'filename': f'attendance_report_division_{safe_division_name}.csv',
+                'total_students': report_data['total_students'],
+                'present_count': report_data['present_count'],
+                'absent_count': report_data['absent_count']
+            }
+        
         response_data = {
             'matched_students': result.get('matched_students', 0),
             'generated_files': result.get('reports', {}).get('files_created', []),
             'year': year,
-            'attendance_report': result.get('attendance_report', []),
             'summary': result.get('reports', {}).get('summary', ''),
-            'download_data': {
-                'attendance_report_csv': _generate_csv_content(result.get('attendance_report', []))
-            }
+            'divisions': result.get('divisions', []),
+            'division_count': result.get('division_count', 0),
+            'division_reports': division_reports,
+            'download_data': download_data
         }
         
         return jsonify(format_response(
