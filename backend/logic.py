@@ -619,6 +619,17 @@ If none of these solutions work, the original file may be irreparably corrupted.
             print(f"  ✓ Name lookup: {len(fctc_lookup_by_name)} entries")
             print(f"  ✓ Roll+Div lookup: {len(fctc_lookup_by_roll_div)} entries")
             
+            # Debug: Show sample entries from each lookup
+            if fctc_lookup_by_prn:
+                sample_prn = list(fctc_lookup_by_prn.keys())[0]
+                print(f"  📝 Sample PRN: {sample_prn}")
+            if fctc_lookup_by_name:
+                sample_name = list(fctc_lookup_by_name.keys())[0]
+                print(f"  📝 Sample Name: {sample_name}")
+            if fctc_lookup_by_roll_div:
+                sample_key = list(fctc_lookup_by_roll_div.keys())[0]
+                print(f"  📝 Sample Roll+Div: {sample_key}")
+            
             # Track matching statistics
             match_stats = {
                 'prn_matches': 0,
@@ -728,6 +739,15 @@ If none of these solutions work, the original file may be irreparably corrupted.
             print(f"📊 Found {len(divisions)} divisions: {list(divisions.keys())}")
             print(f"🎯 Matching Statistics:")
             print(f"  ✓ PRN matches: {match_stats['prn_matches']}")
+            print(f"  ✓ Name matches: {match_stats['name_matches']}")
+            print(f"  ✓ Roll+Div matches: {match_stats['roll_div_matches']}")
+            print(f"  ✗ No match (Absent): {match_stats['no_match']}")
+            
+            # Show matching effectiveness
+            total_students = len(roll_call_data)
+            total_matched = match_stats['prn_matches'] + match_stats['name_matches'] + match_stats['roll_div_matches']
+            match_rate = (total_matched / total_students * 100) if total_students > 0 else 0
+            print(f"  📈 Match Rate: {match_rate:.1f}% ({total_matched}/{total_students})")
             print(f"  ✓ Name matches: {match_stats['name_matches']}")
             print(f"  ✓ Roll+Div matches: {match_stats['roll_div_matches']}")
             print(f"  ✗ No match (Absent): {match_stats['no_match']}")
