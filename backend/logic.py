@@ -490,9 +490,10 @@ If none of these solutions work, the original file may be irreparably corrupted.
                 header_map[header.lower().strip()] = i
         
         # Define required field mappings (case-insensitive)
+        # Note: Order matters - first match wins
         field_mappings = {
             'prn': ['prn'],
-            'roll_no': ['roll no', 'roll number', 'sr.no', 'sr no', 'srno', 'serial no'],
+            'roll_no': ['roll no', 'roll number', 'roll no.', 'rollno'],  # Removed sr.no - it's just serial numbering
             'name': ['name', 'student name', 'full name'],
             'division': ['division', 'div', 'section']
         }
