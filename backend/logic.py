@@ -639,6 +639,12 @@ If none of these solutions work, the original file may be irreparably corrupted.
                 sample_key = list(fctc_lookup_by_roll_div.keys())[0]
                 print(f"  📝 Sample Roll+Div: {sample_key}")
             
+            # Warning if lookups are empty
+            if len(fctc_lookup_by_name) == 0:
+                print(f"  ⚠️  WARNING: Name lookup is empty - FCTC file missing 'Full Name' field or all names are empty")
+            if len(fctc_lookup_by_roll_div) == 0:
+                print(f"  ⚠️  WARNING: Roll+Div lookup is empty - FCTC file missing 'Roll Number' or 'Branch-Division' fields")
+            
             # Track matching statistics
             match_stats = {
                 'prn_matches': 0,
