@@ -610,7 +610,10 @@ If none of these solutions work, the original file may be irreparably corrupted.
             fctc_lookup_by_roll_div = {}
             for record in fctc_data:
                 roll_no = self._clean_roll_no(record.get('Roll_Number', ''))
+                # Check both 'Division' and 'Branch_Division' fields
                 division = str(record.get('Division', '')).strip().upper()
+                if not division:
+                    division = str(record.get('Branch_Division', '')).strip().upper()
                 if roll_no and division:
                     key = f"{roll_no}_{division}"
                     fctc_lookup_by_roll_div[key] = record
@@ -676,6 +679,8 @@ If none of these solutions work, the original file may be irreparably corrupted.
                             # Multiple candidates - try to match by division
                             for candidate in candidates:
                                 cand_div = str(candidate.get('Division', '')).strip().upper()
+                                if not cand_div:
+                                    cand_div = str(candidate.get('Branch_Division', '')).strip().upper()
                                 if cand_div == division:
                                     matched_record = candidate
                                     match_method = "Name"
@@ -701,6 +706,8 @@ If none of these solutions work, the original file may be irreparably corrupted.
                                     # Multiple candidates - try to match by division
                                     for candidate in candidates:
                                         cand_div = str(candidate.get('Division', '')).strip().upper()
+                                        if not cand_div:
+                                            cand_div = str(candidate.get('Branch_Division', '')).strip().upper()
                                         if cand_div == division:
                                             matched_record = candidate
                                             match_method = "Name"
