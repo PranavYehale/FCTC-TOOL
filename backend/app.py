@@ -225,12 +225,13 @@ def process_files():
             'divisions': result.get('divisions', []),
             'division_count': result.get('division_count', 0),
             'division_reports': division_reports,
-            'download_data': download_data
+            'download_data': download_data,
+            'match_stats': result.get('match_stats', {})  # Add matching statistics
         }
         
         return jsonify(format_response(
             True,
-            "PRN-first pipeline completed successfully",
+            "Multi-level matching completed successfully",
             response_data
         )), 200
         
