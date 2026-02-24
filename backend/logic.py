@@ -349,6 +349,11 @@ If none of these solutions work, the original file may be irreparably corrupted.
         if roll_clean in ['', 'NAN', 'NONE', 'NAT', 'NULL']:
             return ""
         
+        # Remove leading zeros: "01" → "1", "002" → "2"
+        # But keep if it's all zeros or has letters: "00" → "0", "R01" → "R01"
+        if roll_clean.isdigit():
+            roll_clean = str(int(roll_clean))  # Converts "01" to "1", "002" to "2"
+        
         return roll_clean
     
     def _fuzzy_name_match(self, name1: str, name2: str, threshold: float = 0.8) -> bool:
